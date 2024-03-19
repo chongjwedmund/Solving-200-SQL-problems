@@ -83,3 +83,92 @@ from advertiser a
 full outer join daily_pay d
 using(user_id)
 order by user_id
+
+-- Source: Leetcode 
+
+-- [Combine Two Tables]
+-- Write a solution to report the first name, last name, city, and state of each person in the Person table. 
+-- If the address of a personId is not present in the Address table, report null instead.
+-- Return the result table in any order.
+
+select firstName, lastName, city, state
+from person p
+left join address a
+on p.personid = a.personid
+
+OR 
+
+select firstname, lastname, city, state 
+from person p
+left join address a
+using(personid)
+
+-- [Second Highest Salary]
+-- Write a solution to find the second highest salary from the Employee table. 
+-- If there is no second highest salary, return null (return None in Pandas).
+
+select 
+(select distinct salary 
+from employee 
+order by salary desc 
+limit 1 offset 1) SecondHighestSalary
+
+-- [Nth Highest Salary]
+-- Write a solution to find the nth highest salary from the Employee table. 
+-- If there is no nth highest salary, return null.
+
+CREATE FUNCTION getNthHighestSalary(N INT) RETURNS INT
+BEGIN
+declare offs int; 
+set offs = n-1; 
+  RETURN (
+      # Write your MySQL query statement below.
+      select ifnull((select distinct salary
+      from employee 
+      order by salary desc
+      limit offs, 1),null)
+  );
+END
+
+-- [Rank Scores] 
+-- Write a solution to find the rank of the scores. The ranking should be calculated according to the following rules:
+-- The scores should be ranked from the highest to the lowest.
+-- If there is a tie between two scores, both should have the same ranking.
+-- After a tie, the next ranking number should be the next consecutive integer value. In other words, there should be no holes between ranks.
+-- Return the result table ordered by score in descending order.
+
+select score, 
+dense_rank() over(order by score desc) 'rank'
+from scores
+order by score desc
+
+-- [Consecutive Numbers] 
+-- Find all numbers that appear at least three times consecutively.
+-- Return the result table in any order.
+
+select distinct l1.num consecutivenums 
+from logs l1
+join logs l2 
+on l1.id = l2.id-1
+join logs l3 
+on l2.id = l3.id-1
+where l1.num = l2.num 
+and l2.num = l3.num  
+
+-- [Employees Earning More Than Their Managers]
+-- Write a solution to find the employees who earn more than their managers.
+-- Return the result table in any order.
+
+select e1.name employee
+from employee e1
+join employee e2 
+on e1.managerid = e2.id 
+where e1.salary > e2.salary
+
+OR 
+
+select name as employee from 
+(select e1.id, e1.name, e1.salary, e1.managerid, e2.salary as mgrsal from employee e1
+left join employee e2
+on e1.managerid = e2.id) sq
+where salary > mgrsal
