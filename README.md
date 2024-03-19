@@ -1,1 +1,1 @@
-Solving-200-SQL-problems-Part-1-of-10
+Documenting my solutions to SQL challenges. Thank you for reading. 
