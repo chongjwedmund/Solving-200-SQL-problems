@@ -1,0 +1,165 @@
+-- Source: Data Lemur 
+
+-- Highest-Grossing Items [Amazon SQL Interview Question]
+-- Assume you're given a table containing data on Amazon customers and their spending on products in different category, 
+-- write a query to identify the top two highest-grossing products within each category in the year 2022. 
+-- The output should include the category, product, and total spend.
+
+with cte as 
+(select category, product, sum(spend) total_spend, 
+rank() over(partition by category order by sum(spend) desc) spend_rank
+from product_spend 
+where extract(year from transaction_date::date) = 2022 
+group by category, product)
+
+select category, product, total_spend
+from cte 
+where spend_rank <= 2
+order by category, spend_rank 
+
+-- Top 5 Artists [Spotify SQL Interview Question]
+-- Assume there are three Spotify tables: artists, songs, and global_song_rank, which contain information about the artists, songs, and music charts, respectively.
+-- Write a query to find the top 5 artists whose songs appear most frequently in the Top 10 of the global_song_rank table. 
+-- Display the top 5 artist names in ascending order, along with their song appearance ranking.
+
+with cte as 
+(select artist_name, 
+dense_rank() over(order by app desc) artist_rank
+from (select artist_name, count(*) app
+from artists a  
+join songs s 
+on a.artist_id = s.artist_id 
+join global_song_rank g  
+on s.song_id = g.song_id 
+where rank <= 10 
+group by artist_name
+order by app desc) sq)
+
+select artist_name, artist_rank
+from cte 
+where artist_rank <= 5 
+order by artist_rank 
+
+-- Signup Activation Rate [TikTok SQL Interview Question]
+-- New TikTok users sign up with their emails. They confirmed their signup by replying to the text confirmation to activate their accounts. 
+-- Users may receive multiple text messages for account confirmation until they have confirmed their new account.
+-- A senior analyst is interested to know the activation rate of specified users in the emails table. 
+-- Write a query to find the activation rate. Round the percentage to 2 decimal places.
+
+select 
+round(1.0*sum(case when signup_action = 'Confirmed' then 1 else 0 end) /  
+count(*),2) confirm_rate
+from emails e  
+join texts t  
+using(email_id)
+
+-- Supercloud Customer [Microsoft SQL Interview Question]
+-- A Microsoft Azure Supercloud customer is defined as a company that purchases at least one product from each product category.
+-- Write a query that effectively identifies the company ID of such Supercloud customers.
+
+select customer_id
+from customer_contracts c  
+join products p  
+using (product_id)
+group by customer_id 
+having count(distinct product_category) = 
+(select count(distinct product_category) from products)
+
+-- Odd and Even Measurements [Google SQL Interview Question]
+-- Assume you're given a table with measurement values obtained from a Google sensor over multiple days with measurements taken multiple times within each day.
+-- Write a query to calculate the sum of odd-numbered and even-numbered measurements separately for a particular day and display the results in two different columns. 
+
+with cte as 
+(select measurement_time::date measurement_day, measurement_value, 
+row_number() over(partition by measurement_time::date order by measurement_time) rownum
+from measurements) 
+
+select measurement_day,
+sum(case when rownum % 2 = 1 then measurement_value else 0 end) odd_sum,
+sum(case when rownum % 2 = 0 then measurement_value else 0 end) even_sum 
+from cte 
+group by measurement_day
+order by measurement_day 
+
+-- Histogram of Users and Purchases [Walmart SQL Interview Question]
+-- Assume you're given a table on Walmart user transactions. 
+-- Based on their most recent transaction date, write a query that retrieve the users along with the number of products they bought.
+-- Output the user's most recent transaction date, user ID, and the number of products, sorted in chronological order by the transaction date.
+
+with cte as 
+(select max(transaction_date::date) transaction_date, user_id
+from user_transactions 
+group by user_id) 
+
+select transaction_date, user_id, count(product_id)
+from user_transactions 
+where transaction_date::date in (select transaction_date from cte) 
+and user_id in (select user_id from cte)
+group by transaction_date, user_id
+order by transaction_date, user_id
+
+-- Compressed Mode [Alibaba SQL Interview Question]
+-- You're given a table containing the item count for each order on Alibaba, along with the frequency of orders that have the same item count. 
+-- Write a query to retrieve the mode of the order occurrences. 
+-- Additionally, if there are multiple item counts with the same mode, the results should be sorted in ascending order.
+
+with cte as 
+(select item_count, 
+rank() over(order by order_occurrences desc) item_rank 
+from items_per_order)
+
+select item_count mode
+from cte 
+where item_rank = 1
+
+-- Card Launch Success [JPMorgan Chase SQL Interview Question]
+-- Your team at JPMorgan Chase is soon launching a new credit card. You are asked to estimate how many cards you'll issue in the first month.
+-- Before you can answer this question, you want to first get some perspective on how well new credit card launches typically do in their first month.
+-- Write a query that outputs the name of the credit card, and how many cards were issued in its launch month. 
+-- The launch month is the earliest record in the monthly_cards_issued table for a given card. Order the results starting from the biggest issued amount.
+
+select card_name, issued_amount 
+from (select card_name, issued_amount, 
+rank() over(partition by card_name order by issue_year, issue_month) date_rank
+from monthly_cards_issued) sq 
+where date_rank = 1
+order by issued_amount desc 
+
+OR 
+
+with cte as 
+(select card_name, issued_amount, 
+rank() over(partition by card_name order by issue_year, issue_month) date_rank
+from monthly_cards_issued)
+
+select card_name, issued_amount 
+from cte 
+where date_rank = 1
+order by issued_amount desc 
+
+-- International Call Percentage [Verizon SQL Interview Question]
+-- A phone call is considered an international call when the person calling is in a different country than the person receiving the call.
+-- What percentage of phone calls are international? Round the result to 1 decimal.
+
+with caller as 
+(select caller_id, call_time, country_id call_cid 
+from phone_calls c 
+join phone_info i  
+using(caller_id)), 
+
+receiver as 
+(select receiver_id, call_time, country_id rcv_cid  
+from phone_calls c 
+join phone_info i  
+on c.receiver_id = i.caller_id)
+
+select 
+round(100.0*sum(case when call_cid <> rcv_cid then 1 else 0 end) / count(*),1) international_calls_pct  
+from caller 
+join receiver 
+using(call_time)
+
+
+
+
+
