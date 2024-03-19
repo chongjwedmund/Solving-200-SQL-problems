@@ -212,7 +212,3 @@ round(avg(stars),2) avg_stars
 from reviews
 group by mth, product_id
 order by mth, product_id 
-
-
-
-
