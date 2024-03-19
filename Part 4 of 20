@@ -1,0 +1,85 @@
+-- Source: Data Lemur 
+
+-- Y-on-Y Growth Rate [Wayfair SQL Interview Question]
+-- Assume you're given a table containing information about Wayfair user transactions for different products. 
+-- Write a query to calculate the year-on-year growth rate for the total spend of each product, grouping the results by product ID.
+-- The output should include the year in ascending order, product ID, current year's spend, previous year's spend and year-on-year growth percentage, rounded to 2 decimal places.
+
+with cte as 
+(select extract(year from transaction_date) as year, product_id, sum(spend)
+from user_transactions 
+group by extract(year from transaction_date), product_id)
+
+select c1.year, c1.product_id, c1.sum curr_year_spend, c2.sum prev_year_spend, 
+round(100.0*(c1.sum/c2.sum -1),2) yoy_rate
+from cte c1
+left join cte c2
+on c1.product_id = c2.product_id 
+and c1.year = c2.year + 1
+order by c1.product_id, c1.year 
+
+-- Maximize Prime Item Inventory [Amazon SQL Interview Question]
+-- Amazon wants to maximize the number of items it can stock in a 500,000 square feet warehouse. 
+-- It wants to stock as many prime items as possible, and afterwards use the remaining square footage to stock the most number of non-prime items.
+-- Write a query to find the number of prime and non-prime items that can be stored in the 500,000 square feet warehouse. 
+-- Output the item type with prime_eligible followed by not_prime and the maximum number of items that can be stocked.
+
+with prime as 
+(select item_type, 
+sum(square_footage) sum_sqf_once, 
+count(distinct item_id) item_count_once, 
+floor(500000/sum(square_footage)) times,
+count(distinct item_id) * floor(500000/sum(square_footage)) item_count, 
+500000 - floor(500000/sum(square_footage)) * sum(square_footage) remaining_sqf
+from inventory 
+where item_type = 'prime_eligible'
+group by item_type),
+
+not_prime as 
+(select item_type, 
+sum(square_footage) sum_sqf_once, 
+count(distinct item_id) item_count_once, 
+floor((select remaining_sqf from prime)/sum(square_footage)) times,
+count(distinct item_id) * floor((select remaining_sqf from prime)/sum(square_footage)) item_count, 
+'' remaining_sqf
+from inventory 
+where item_type = 'not_prime'
+group by item_type) 
+
+select item_type, item_count
+from prime 
+union  
+select item_type, item_count
+from not_prime 
+order by item_type desc 
+
+-- Median Google Search Frequency [Google SQL Interview Question]
+-- Google's marketing team is making a Superbowl commercial and needs a simple statistic to put on their TV ad: the median number of searches a person made last year.
+-- However, at Google scale, querying the 2 trillion searches is too costly. 
+-- Luckily, you have access to the summary table which tells you the number of searches made last year and how many Google users fall into that bucket.
+-- Write a query to report the median of searches made by a user. Round the median to one decimal point.
+
+with cte as 
+(select searches 
+from search_frequency 
+group by searches, generate_series(1,num_users)
+order by searches)
+
+select round(percentile_cont(0.5) within group(order by searches)::decimal,1) median
+from cte 
+
+-- Advertiser Status [Facebook SQL Interview Question]
+-- You're provided with two tables: the advertiser table contains information about advertisers and their respective payment status, 
+-- and the daily_pay table contains the current payment information for advertisers, and it only includes advertisers who have made payments.
+-- Write a query to update the payment status of Facebook advertisers based on the information in the daily_pay table. 
+-- The output should include the user ID and their current payment status, sorted by the user id.
+
+select user_id,
+case when paid is null then 'CHURN'
+when status = 'CHURN' and paid is not null then 'RESURRECT'
+when status is null then 'NEW'
+else 'EXISTING' end new_status
+from advertiser a
+full outer join daily_pay d
+using(user_id)
+order by user_id
