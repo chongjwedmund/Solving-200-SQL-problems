@@ -210,6 +210,27 @@ from send s
 join open o 
 using(age_bucket) 
 
+OR 
+
+with cte as 
+(select activity_type, age_bucket, sum(time_spent) time_spent_sum
+from activities a
+join age_breakdown ab 
+using(user_id)
+where activity_type in ('send','open')
+group by activity_type, age_bucket)
+
+select age_bucket, 
+
+round(100.0*sum(case when activity_type = 'send' then time_spent_sum else 0 end) / 
+sum(time_spent_sum),2) send_perc, 
+
+round(100.0*sum(case when activity_type = 'open' then time_spent_sum else 0 end) / 
+sum(time_spent_sum),2) open_perc 
+
+from cte 
+group by age_bucket 
+
 -- Tweets' Rolling Averages [Twitter SQL Interview Question]
 -- Given a table of tweet data over a specified time period, calculate the 3-day rolling average of tweets for each user. 
 -- Output the user ID, tweet date, and rolling averages rounded to 2 decimal places.
