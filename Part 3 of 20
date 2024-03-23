@@ -43,18 +43,18 @@ order by artist_rank
 OR 
 
 with cte as 
-(select a.artist_id, a.artist_name, count(g.song_id) song_count, 
-dense_rank() over(order by count(g.song_id) desc) artist_rank
-from artists a  
+(select artist_name, count(s.song_id) song_count, 
+dense_rank() over (order by count(s.song_id) desc) artist_rank
+from artists a
 join songs s 
-on a.artist_id = s.artist_id 
-join global_song_rank g 
-on s.song_id = g.song_id 
-where g.rank <= 10
-group by a.artist_id, a.artist_name) 
+using (artist_id)
+join global_song_rank g
+using (song_id)
+where g.rank <= 10 
+group by artist_name)
 
 select artist_name, artist_rank 
-from cte 
+from cte
 where artist_rank <= 5
 order by artist_rank 
 
